@@ -28,6 +28,11 @@ namespace wgsl {
 
 WgslEmitter::WgslEmitter(CompilerInstance &ci)
   : hlslEntryFunctionName(ci.getCodeGenOpts().HLSLEntryFunction) {
+  // Get ShaderModel from command line hlsl profile option.
+  const hlsl::ShaderModel *shaderModel =
+      hlsl::ShaderModel::GetByName(ci.getCodeGenOpts().HLSLProfile.c_str());
+
+  shaderModelKind = shaderModel->GetKind();
 }
 
 void WgslEmitter::HandleTranslationUnit(ASTContext &context) {
@@ -37,15 +42,44 @@ void WgslEmitter::HandleTranslationUnit(ASTContext &context) {
   // The entry function is the seed of the queue.
   for (auto *decl : tu->decls()) {
     if (auto *funcDecl = dyn_cast<FunctionDecl>(decl)) {
-      const bool isPrototype = !funcDecl->isThisDeclarationADefinition();
-      if (funcDecl->getName() == hlslEntryFunctionName && !isPrototype) {
-        //addFunctionToWorkQueue(spvContext.getCurrentShaderModelKind(),
-        //                       funcDecl, /*isEntryFunction*/ true);
-        numEntryPoints++;
+      if (shaderModelKind == hlsl::ShaderModel::Kind::Library) {
+        if (const auto *shaderAttr = funcDecl->getAttr<HLSLShaderAttr>()) {
+          // If we are compiling as a library then add everything that has a
+          // ShaderAttr.
+          addFunctionToWorkQueue(getShaderModelKind(shaderAttr->getStage()),
+                                 funcDecl, /*isEntryFunction*/ true);
+          numEntryPoints++;
+        } else if (funcDecl->getAttr<HLSLExportAttr>()) {
+          addFunctionToWorkQueue(shaderModelKind, funcDecl, /*isEntryFunction*/ false);
+        }
       } else {
-        doDecl(decl);
+        const bool isPrototype = !funcDecl->isThisDeclarationADefinition();
+        if (funcDecl->getName() == hlslEntryFunctionName && !isPrototype) {
+            addFunctionToWorkQueue(shaderModelKind,
+                                funcDecl, /*isEntryFunction*/ true);
+            numEntryPoints++;
+        } else {
+            doDecl(decl);
+        }
       }
     }
+  }
+}
+
+void WgslEmitter::addFunctionToWorkQueue(hlsl::DXIL::ShaderKind shaderKind,
+                                         const clang::FunctionDecl *fnDecl,
+                                         bool isEntryFunction) {
+  // Only update the workQueue and the function info map if the given
+  // FunctionDecl hasn't been added already.
+  if (functionInfoMap.find(fnDecl) == functionInfoMap.end()) {
+    // Note: The function is just discovered and is being added to the
+    // workQueue, therefore it does not have the entryFunction SPIR-V
+    // instruction yet (use nullptr).
+    auto *fnInfo = new FunctionInfo(shaderKind, fnDecl, 
+        ///*entryFunction*/ nullptr,
+        isEntryFunction);
+    functionInfoMap[fnDecl] = fnInfo;
+    workQueue.push_back(fnInfo);
   }
 }
 
@@ -92,6 +126,28 @@ void WgslEmitter::doDecl(const Decl *decl) {
   } else {
     //emitError("decl type %0 unimplemented", decl->getLocation()) << decl->getDeclKindName();
   }
+}
+
+hlsl::ShaderModel::Kind WgslEmitter::getShaderModelKind(StringRef stageName) const {
+  hlsl::ShaderModel::Kind SMK =
+      llvm::StringSwitch<hlsl::ShaderModel::Kind>(stageName)
+          .Case("pixel", hlsl::ShaderModel::Kind::Pixel)
+          .Case("vertex", hlsl::ShaderModel::Kind::Vertex)
+          .Case("geometry", hlsl::ShaderModel::Kind::Geometry)
+          .Case("hull", hlsl::ShaderModel::Kind::Hull)
+          .Case("domain", hlsl::ShaderModel::Kind::Domain)
+          .Case("compute", hlsl::ShaderModel::Kind::Compute)
+          .Case("raygeneration", hlsl::ShaderModel::Kind::RayGeneration)
+          .Case("intersection", hlsl::ShaderModel::Kind::Intersection)
+          .Case("anyhit", hlsl::ShaderModel::Kind::AnyHit)
+          .Case("closesthit", hlsl::ShaderModel::Kind::ClosestHit)
+          .Case("miss", hlsl::ShaderModel::Kind::Miss)
+          .Case("callable", hlsl::ShaderModel::Kind::Callable)
+          .Case("mesh", hlsl::ShaderModel::Kind::Mesh)
+          .Case("amplification", hlsl::ShaderModel::Kind::Amplification)
+          .Default(hlsl::ShaderModel::Kind::Invalid);
+  assert(SMK != hlsl::ShaderModel::Kind::Invalid);
+  return SMK;
 }
 
 } // end namespace wgsl
