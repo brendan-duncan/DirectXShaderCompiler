@@ -274,6 +274,11 @@ public:
       SpirvOptions; // All SPIR-V CodeGen-related options
 #endif
   // SPIRV Change Ends
+  // WGSL Change Starts
+#ifdef ENABLE_WGSL_CODEGEN
+  bool GenWGSL; // OPT_wgsl
+#endif
+  // WGSL Change Ends
 };
 
 /// Use this class to capture, convert and handle the lifetime for the

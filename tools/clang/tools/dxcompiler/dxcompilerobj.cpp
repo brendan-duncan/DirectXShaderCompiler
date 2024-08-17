@@ -65,6 +65,7 @@
 #include "clang/SPIRV/EmitSpirvAction.h"
 #endif
 // SPIRV change ends
+#include "clang/WGSL/EmitWgslAction.h"
 
 #ifdef SUPPORT_QUERY_GIT_COMMIT_INFO
 #include "clang/Basic/Version.h"
@@ -965,7 +966,17 @@ public:
         outStream.flush();
       }
 #endif
-      // SPIRV change ends
+#ifdef ENABLE_WGSL_CODEGEN
+      // WGSL change ends
+      else if (!isPreprocessing && opts.GenWGSL) {
+        clang::EmitWgslAction action;
+        FrontendInputFile file(pUtf8SourceName, IK_HLSL);
+        action.BeginSourceFile(compiler, file);
+        action.Execute();
+        action.EndSourceFile();
+        outStream.flush();
+      }
+#endif
       else if (!isPreprocessing) {
         EmitBCAction action(&llvmContext);
         FrontendInputFile file(pUtf8SourceName, IK_HLSL);

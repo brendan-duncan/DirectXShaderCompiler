@@ -153,6 +153,13 @@ if (${ENABLE_SPIRV_CODEGEN})
 endif()
 # SPIRV change ends
 
+# WGSL change starts
+option(ENABLE_WGSL_CODEGEN "Enables WGSL code generation." ON)
+if (${ENABLE_WGSL_CODEGEN})
+  add_definitions(-DENABLE_WGSL_CODEGEN)
+endif()
+# WGSL change ends
+
 include(VersionFromVCS)
 
 option(LLVM_APPEND_VC_REV

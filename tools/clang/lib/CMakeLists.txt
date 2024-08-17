@@ -27,3 +27,8 @@ if (ENABLE_SPIRV_CODEGEN)
   add_subdirectory(SPIRV)
 endif (ENABLE_SPIRV_CODEGEN)
 # SPIRV change ends
+# WGSL change starts
+if (ENABLE_WGSL_CODEGEN)
+add_subdirectory(WGSL)
+endif (ENABLE_WGSL_CODEGEN)
+# WGSL change ends

@@ -30,6 +30,10 @@ if(ENABLE_SPIRV_CODEGEN)
   target_link_libraries(dxclib PRIVATE clangSPIRV)
 endif()
 
+if(ENABLE_WGSL_CODEGEN)
+  target_link_libraries(dxclib PRIVATE clangWGSL)
+endif()
+
 if (MSVC)
   include_directories(AFTER ${DIASDK_INCLUDE_DIRS})
 endif (MSVC)

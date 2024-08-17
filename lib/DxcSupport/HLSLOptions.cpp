@@ -1044,6 +1044,9 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
 
   addDiagnosticArgs(Args, OPT_W_Group, OPT_W_value_Group, opts.Warnings);
 
+#ifdef ENABLE_WGSL_CODEGEN
+  opts.GenWGSL = Args.hasFlag(OPT_wgsl, OPT_INVALID, false);
+#endif
   // SPIRV Change Starts
 #ifdef ENABLE_SPIRV_CODEGEN
   opts.GenSPIRV = Args.hasFlag(OPT_spirv, OPT_INVALID, false);

@@ -73,6 +73,8 @@ def hlslrewrite_Group : OptionGroup<"HLSL Rewriter">, HelpText<"Rewriter Options
 
 def spirv_Group : OptionGroup<"SPIR-V CodeGen">, HelpText<"SPIR-V CodeGen Options">; // SPIRV Change
 
+def wgsl_Group : OptionGroup<"WGSL CodeGen">, HelpText<"WGSL CodeGen Options">; // WGSL Change
+
 //////////////////////////////////////////////////////////////////////////////
 // Options
 
@@ -345,6 +347,11 @@ def disable_exception_handling : Flag<["-", "/"], "disable-exception-handling">,
 // Used with API only
 def skip_serialization : Flag<["-", "/"], "skip-serialization">, Group<hlslcore_Group>, Flags<[CoreOption, HelpHidden]>,
   HelpText<"Return a module interface instead of serialized output">;
+
+// WGSL Change Starts
+def wgsl : Flag<["-"], "wgsl">, Group<wgsl_Group>, Flags<[CoreOption, DriverOption]>,
+  HelpText<"Generate WGSL code">;
+// WGSL Change Ends
 
 // SPIRV Change Starts
 def spirv : Flag<["-"], "spirv">, Group<spirv_Group>, Flags<[CoreOption, DriverOption]>,
