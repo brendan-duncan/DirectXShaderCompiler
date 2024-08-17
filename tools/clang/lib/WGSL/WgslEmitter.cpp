@@ -26,7 +26,8 @@
 namespace clang {
 namespace wgsl {
 
-WgslEmitter::WgslEmitter(CompilerInstance &ci) {
+WgslEmitter::WgslEmitter(CompilerInstance &ci)
+  : hlslEntryFunctionName(ci.getCodeGenOpts().HLSLEntryFunction) {
 }
 
 void WgslEmitter::HandleTranslationUnit(ASTContext &context) {
