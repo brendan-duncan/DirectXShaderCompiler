@@ -17,6 +17,7 @@
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/WGSL/WgslContext.h"
 #include "dxc/DXIL/DxilShaderModel.h"
 
 namespace clang {
@@ -56,7 +57,9 @@ private:
         , isEntryFunction(isEntryFunc) {}
   };
 
-  hlsl::ShaderModel::Kind shaderModelKind;
+  CompilerInstance &theCompilerInstance;
+
+  WgslContext wgslContext;
 
   /// \brief Entry function name, derived from the command line
   /// and should be const.

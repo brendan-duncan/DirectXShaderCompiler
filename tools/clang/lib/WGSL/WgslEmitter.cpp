@@ -27,12 +27,16 @@ namespace clang {
 namespace wgsl {
 
 WgslEmitter::WgslEmitter(CompilerInstance &ci)
-  : hlslEntryFunctionName(ci.getCodeGenOpts().HLSLEntryFunction) {
+  : theCompilerInstance(ci)
+  , hlslEntryFunctionName(ci.getCodeGenOpts().HLSLEntryFunction) {
   // Get ShaderModel from command line hlsl profile option.
   const hlsl::ShaderModel *shaderModel =
       hlsl::ShaderModel::GetByName(ci.getCodeGenOpts().HLSLProfile.c_str());
 
-  shaderModelKind = shaderModel->GetKind();
+  // Set shader model kind and hlsl major/minor version.
+  wgslContext.setCurrentShaderModelKind(shaderModel->GetKind());
+  wgslContext.setMajorVersion(shaderModel->GetMajor());
+  wgslContext.setMinorVersion(shaderModel->GetMinor());
 }
 
 void WgslEmitter::HandleTranslationUnit(ASTContext &context) {
@@ -42,7 +46,7 @@ void WgslEmitter::HandleTranslationUnit(ASTContext &context) {
   // The entry function is the seed of the queue.
   for (auto *decl : tu->decls()) {
     if (auto *funcDecl = dyn_cast<FunctionDecl>(decl)) {
-      if (shaderModelKind == hlsl::ShaderModel::Kind::Library) {
+      if (wgslContext.getCurrentShaderModelKind() == hlsl::ShaderModel::Kind::Library) {
         if (const auto *shaderAttr = funcDecl->getAttr<HLSLShaderAttr>()) {
           // If we are compiling as a library then add everything that has a
           // ShaderAttr.
@@ -50,20 +54,41 @@ void WgslEmitter::HandleTranslationUnit(ASTContext &context) {
                                  funcDecl, /*isEntryFunction*/ true);
           numEntryPoints++;
         } else if (funcDecl->getAttr<HLSLExportAttr>()) {
-          addFunctionToWorkQueue(shaderModelKind, funcDecl, /*isEntryFunction*/ false);
+          addFunctionToWorkQueue(wgslContext.getCurrentShaderModelKind(), funcDecl, /*isEntryFunction*/ false);
         }
       } else {
         const bool isPrototype = !funcDecl->isThisDeclarationADefinition();
         if (funcDecl->getName() == hlslEntryFunctionName && !isPrototype) {
-            addFunctionToWorkQueue(shaderModelKind,
+          addFunctionToWorkQueue(wgslContext.getCurrentShaderModelKind(),
                                 funcDecl, /*isEntryFunction*/ true);
-            numEntryPoints++;
+          numEntryPoints++;
         } else {
-            doDecl(decl);
+          doDecl(decl);
         }
       }
     }
   }
+
+  // Translate all functions reachable from the entry function.
+  // The queue can grow in the meanwhile; so need to keep evaluating
+  // workQueue.size().
+  for (uint32_t i = 0; i < workQueue.size(); ++i) {
+    const FunctionInfo *curEntryOrCallee = workQueue[i];
+    wgslContext.setCurrentShaderModelKind(curEntryOrCallee->shaderModelKind);
+    doDecl(curEntryOrCallee->funcDecl);
+    if (context.getDiagnostics().hasErrorOccurred()) {
+      return;
+    }
+  }
+
+  // Even though the 'workQueue' grows due to the above loop, the first
+  // 'numEntryPoints' entries in the 'workQueue' are the ones with the HLSL
+  // 'shader' attribute, and must therefore be entry functions.
+  assert(numEntryPoints <= workQueue.size());
+
+
+  //theCompilerInstance.getOutStream()->write(
+      //reinterpret_cast<const char *>(m.data()), m.size() * 4);
 }
 
 void WgslEmitter::addFunctionToWorkQueue(hlsl::DXIL::ShaderKind shaderKind,
